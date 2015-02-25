@@ -1,0 +1,30 @@
+extends /base.jade
+block body
+  #root(ng-app="main",ng-controller="main")
+    #dimmer(ng-show="dim")
+    h1 Comment Marketing Tool
+    .panel.panel-default
+      .panel-body
+        form.form-inline
+          .input-group
+            input.form-control(type="text",ng-model="newkeyword",placeholder="add new keyword...")
+            span.input-group-btn
+              .btn.btn-default(ng-click="doexpand()") Add
+    #keywords.panel.panel-default
+      .panel-body
+        .label(ng-repeat="(k,v) in keywords",ng-class="{'label-primary':v==0,'label-default':v==1}")
+          | {{k}}
+          i.glyphicon.glyphicon-plus-sign(ng-show="!v",ng-click="add(k)")
+          i.glyphicon.glyphicon-minus-sign(ng-click="remove(k)")
+    #status.panel.panel-default
+      .panel-heading
+        b Related Keyword Ranking
+        .pull-right.btn.btn-primary.btn-xs(ng-click="generate()") Generate
+      .panel-body
+        svg#bubble(width="800px",height="400px",viewbox="0 0 800 400",preserveAspectRatio="xMidYMid")
+          g.circle
+          g.text
+        //-.label.label-primary(ng-repeat="(k,v) in trends") {{k}}:{{v}}
+        .site(ng-repeat="s in sites") 
+          .key(ng-attr-style="background:{{color(s.key)}}") {{s.key}}
+          .title {{s.title}}

@@ -1,0 +1,52 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%; }
+
+#dimmer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  background: url(/img/loading.gif) rgba(0, 0, 0, 0.5) center center no-repeat; }
+
+#root {
+  margin: 20px; }
+
+#keywords .label, #status .label {
+  margin: 2px;
+  font-size: 1.3em;
+  display: inline-block; }
+  #keywords .label i.glyphicon, #status .label i.glyphicon {
+    margin-left: 3px;
+    font-size: 0.7em;
+    cursor: pointer; }
+
+#bubble {
+  display: block;
+  margin: auto; }
+
+#bubble g.text text {
+  text-anchor: middle;
+  dominant-baseline: central; }
+
+.site {
+  width: 120px;
+  height: 120px;
+  display: inline-block;
+  border-radius: 3px;
+  border: 1px solid #ccc;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  vertical-align: top;
+  overflow: hidden;
+  margin: 5px;
+  padding: 5px; }
+  .site .key {
+    margin: 5px;
+    padding: 1px 4px; }
+  .site .title {
+    margin: 0 5px;
+    font-size: 13px; }
