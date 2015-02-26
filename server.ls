@@ -1,8 +1,13 @@
-require! <[LiveScript fs ./secret]>
+require! <[LiveScript fs ./secret bluebird request]>
 require! './backend/main': {backend, aux}
 require! './backend/dummy': driver
 require! <[google-trends]>
 require! <[google-search]>
+
+prequest = (config) -> new bluebird (res, rej) ->
+  (e,r,b) <- request config, _
+  if e or !b => return rej!
+  return res b
 
 config = {debug: true, name: \servlet}
 config <<< secret
@@ -11,6 +16,15 @@ backend.init config, driver, ->
 backend.app.get \/trends/:keyword, (req, res) ->
   keywords = req.params.keyword.split(\,)
   google-trends.getAll keywords .then (result) -> res.json result
+
+backend.app.get \/content/:url, (req, res) ->
+  url = new Buffer(req.params.url.replace(/-/g,'/'), \base64).toString!
+  prequest {url, method: \GET} .then (body) ->
+    foundi = !!/foundi/.exec(body)
+    comment = !!/留言|評論/.exec(body)
+    nofollow = !!/nofollow/.exec(body)
+    return res.json {foundi,comment, nofollow}
+  .catch -> return res.json null
 
 searchlist = (keywords, res, data = {}) ->
   if keywords.length == 0 => return res.json data
@@ -21,7 +35,6 @@ searchlist = (keywords, res, data = {}) ->
     searchlist keywords, res, data
 
 backend.app.get \/search/:keyword, (req, res) ->
-  #res.json JSON.parse(fs.read-file-sync \search-result.json .toString!)
   searchlist req.params.keyword.split(\,), res
 
 relatedlist = (keywords, res, data = {}) ->

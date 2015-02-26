@@ -21,10 +21,18 @@ block body
         b Related Keyword Ranking
         .pull-right.btn.btn-primary.btn-xs(ng-click="generate()") Generate
       .panel-body
-        svg#bubble(width="800px",height="400px",viewbox="0 0 800 400",preserveAspectRatio="xMidYMid")
-          g.circle
-          g.text
-        //-.label.label-primary(ng-repeat="(k,v) in trends") {{k}}:{{v}}
-        .site(ng-repeat="s in sites") 
+        .row
+          .col-sm-6
+            svg#bubble(width="100%",height="400px",viewbox="0 0 600 400",preserveAspectRatio="xMidYMid")
+              g.circle
+              g.text
+          .col-sm-6
+            svg#host(width="100%",height="400px",viewbox="0 0 600 400",preserveAspectRatio="xMidYMid")
+              g.bar
+              g.text
+        .site(ng-repeat="s in sites",ng-class="{'foundi':s.stat.foundi,'comment':s.stat.comment,'nofollow':s.stat.nofollow,'loading':!s.stat}") 
           .key(ng-attr-style="background:{{color(s.key)}}") {{s.key}}
+          .host
+            .bullet(ng-attr-style="background:{{barcolor(hosts[s.host])}}")
+            | {{s.host}}
           .title {{s.title}}

@@ -1,5 +1,6 @@
 angular.module \main, <[]>
-  ..controller \main, <[$scope $http]> ++ ($scope, $http) ->
+  ..controller \main, <[$scope $http $timeout]> ++ ($scope, $http, $timeout) ->
+    base64p = -> btoa(it).replace /\//g, '-'
     $scope.keywords = {}
     $scope.trends = {}
     $scope.init = ->
@@ -50,6 +51,16 @@ angular.module \main, <[]>
         console.log "trends: ", $scope.trends
         $scope.dim = false
         $scope.getsites!
+    $scope.getsites-stat = ->
+      r = $scope.sites.filter(->!it.stat)
+      if r.length == 0 => return
+      item = r.0
+      $http do
+        url: "/content/#{base64p(item.href)}"
+        method: \GET
+      .success (d) -> 
+        item.stat = d
+        $timeout (-> $scope.getsites-stat!), 10
     $scope.getsites = ->
       keyword = [k for k of $scope.keywords].join(\,)
       if !keyword => return
@@ -61,16 +72,54 @@ angular.module \main, <[]>
         console.log "search list: ", d
         $scope.dim = false
         $scope.sites = []
+        $scope.hosts = {}
         for k,v of d =>
           idx = 1
           for item in v =>
             item.trend = $scope.trends[k]
             item.key = k
+            host = item.href.replace /^https?:\/\//, ""
+            host = host.replace /\/.*$/, ""
+            host = /(([^.]+)(.(edu|com|net|gov|idv|org))?\.[^/.]+)$/.exec host
+            item.host = host.1
             item.idx = (60 - idx) * $scope.trends[k]
+            $scope.hosts[item.host] = ($scope.hosts[item.host] or 0) + item.idx
             $scope.sites.push item
             idx++
         $scope.sites.sort((a,b) -> b.idx - a.idx)
+        $scope.hostbar!
+        $scope.getsites-stat!
     $scope.color = color = d3.scale.category20!
+    $scope.hostbar = ->
+      data = [[k,v] for k,v of $scope.hosts]sort((a,b) -> b.1 - a.1)
+      if data.length > 25 => data.splice(25)
+      xmap = d3.scale.linear!domain [0 data.0.1] .range [0 500]
+      $scope.barcolor = d3.scale.linear!domain [0 data.0.1/2 data.0.1] .range <[#0a0 #ff0 #d00]>
+      h = 400 / data.length
+      d3.select '#host g.bar' .selectAll \rect .data data
+        ..enter!append \rect
+        ..exit!remove!
+      d3.select '#host g.text' .selectAll \text .data data
+        ..enter!append \text
+        ..exit!remove!
+      d3.select '#host g.bar' .selectAll \rect
+        ..attr do
+          x: 0
+          y: (d,i) -> i * h
+          width: (d,i) -> xmap d.1
+          height: h - 2
+          fill: (d,i) -> $scope.barcolor d.1
+      d3.select '#host g.text' .selectAll \text
+        ..attr do
+          x: (d,i) -> xmap d.1
+          dx: 5
+          y: (d,i) -> i * h
+          dy: h/2 - 2
+          "font-size": \12
+
+          "dominant-baseline": \central
+        ..text -> it.0
+
     $scope.bubble = ->
       root = {children: [{children: [], value: v, name: k} for k,v of $scope.trends]}
       nodes = d3.layout.pack!size([800 400]).nodes root

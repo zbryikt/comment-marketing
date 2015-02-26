@@ -1,7 +1,10 @@
 var x$;
 x$ = angular.module('main', []);
-x$.controller('main', ['$scope', '$http'].concat(function($scope, $http){
-  var color;
+x$.controller('main', ['$scope', '$http', '$timeout'].concat(function($scope, $http, $timeout){
+  var base64p, color;
+  base64p = function(it){
+    return btoa(it).replace(/\//g, '-');
+  };
   $scope.keywords = {};
   $scope.trends = {};
   $scope.init = function(){
@@ -91,6 +94,25 @@ x$.controller('main', ['$scope', '$http'].concat(function($scope, $http){
       return $scope.getsites();
     });
   };
+  $scope.getsitesStat = function(){
+    var r, item;
+    r = $scope.sites.filter(function(it){
+      return !it.stat;
+    });
+    if (r.length === 0) {
+      return;
+    }
+    item = r[0];
+    return $http({
+      url: "/content/" + base64p(item.href),
+      method: 'GET'
+    }).success(function(d){
+      item.stat = d;
+      return $timeout(function(){
+        return $scope.getsitesStat();
+      }, 10);
+    });
+  };
   $scope.getsites = function(){
     var keyword, k;
     keyword = (function(){
@@ -108,10 +130,11 @@ x$.controller('main', ['$scope', '$http'].concat(function($scope, $http){
       url: "/search/" + keyword,
       method: 'GET'
     }).success(function(d){
-      var k, v, idx, i$, len$, item;
+      var k, v, idx, i$, len$, item, host;
       console.log("search list: ", d);
       $scope.dim = false;
       $scope.sites = [];
+      $scope.hosts = {};
       for (k in d) {
         v = d[k];
         idx = 1;
@@ -119,17 +142,80 @@ x$.controller('main', ['$scope', '$http'].concat(function($scope, $http){
           item = v[i$];
           item.trend = $scope.trends[k];
           item.key = k;
+          host = item.href.replace(/^https?:\/\//, "");
+          host = host.replace(/\/.*$/, "");
+          host = /(([^.]+)(.(edu|com|net|gov|idv|org))?\.[^/.]+)$/.exec(host);
+          item.host = host[1];
           item.idx = (60 - idx) * $scope.trends[k];
+          $scope.hosts[item.host] = ($scope.hosts[item.host] || 0) + item.idx;
           $scope.sites.push(item);
           idx++;
         }
       }
-      return $scope.sites.sort(function(a, b){
+      $scope.sites.sort(function(a, b){
         return b.idx - a.idx;
       });
+      $scope.hostbar();
+      return $scope.getsitesStat();
     });
   };
   $scope.color = color = d3.scale.category20();
+  $scope.hostbar = function(){
+    var data, k, v, xmap, h, x$, y$, z$, z1$;
+    data = (function(){
+      var ref$, results$ = [];
+      for (k in ref$ = $scope.hosts) {
+        v = ref$[k];
+        results$.push([k, v]);
+      }
+      return results$;
+    }()).sort(function(a, b){
+      return b[1] - a[1];
+    });
+    if (data.length > 25) {
+      data.splice(25);
+    }
+    xmap = d3.scale.linear().domain([0, data[0][1]]).range([0, 500]);
+    $scope.barcolor = d3.scale.linear().domain([0, data[0][1] / 2, data[0][1]]).range(['#0a0', '#ff0', '#d00']);
+    h = 400 / data.length;
+    x$ = d3.select('#host g.bar').selectAll('rect').data(data);
+    x$.enter().append('rect');
+    x$.exit().remove();
+    y$ = d3.select('#host g.text').selectAll('text').data(data);
+    y$.enter().append('text');
+    y$.exit().remove();
+    z$ = d3.select('#host g.bar').selectAll('rect');
+    z$.attr({
+      x: 0,
+      y: function(d, i){
+        return i * h;
+      },
+      width: function(d, i){
+        return xmap(d[1]);
+      },
+      height: h - 2,
+      fill: function(d, i){
+        return $scope.barcolor(d[1]);
+      }
+    });
+    z1$ = d3.select('#host g.text').selectAll('text');
+    z1$.attr({
+      x: function(d, i){
+        return xmap(d[1]);
+      },
+      dx: 5,
+      y: function(d, i){
+        return i * h;
+      },
+      dy: h / 2 - 2,
+      "font-size": '12',
+      "dominant-baseline": 'central'
+    });
+    z1$.text(function(it){
+      return it[0];
+    });
+    return z1$;
+  };
   $scope.bubble = function(){
     var root, k, v, nodes, x$, y$, z$, z1$;
     root = {

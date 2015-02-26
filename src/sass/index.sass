@@ -37,8 +37,8 @@ html,body
   dominant-baseline: central
 
 .site
-  width: 120px
-  height: 120px
+  width: 160px
+  height: 140px
   display: inline-block
   border-radius: 3px
   border: 1px solid #ccc
@@ -47,10 +47,32 @@ html,body
   overflow: hidden
   margin: 5px
   padding: 5px
+  opacity: 0.3
+  -webkit-filter: saturate(0)
   .key
-    margin: 5px
+    margin: 5px 5px 0
     padding: 1px 4px
 
   .title
     margin: 0 5px
     font-size: 13px
+  .host
+    color: #666
+    font-size: 12px
+    @include transform(scale(0.9))
+    .bullet
+      width: 10px
+      height: 10px
+      border-radius: 5px
+      display: inline-block
+      vertical-align: middle
+      margin-right: 3px
+.site.loading
+  -webkit-filter: saturate(1)
+.site.comment
+  opacity: 1
+  -webkit-filter: saturate(1)
+.site.foundi
+  border: 1px solid #0d0
+.site.nofollow
+  background: #eee
