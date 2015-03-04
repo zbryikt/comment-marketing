@@ -1,9 +1,25 @@
-require! <[LiveScript fs ./secret bluebird request]>
+require! <[LiveScript fs ./secret bluebird request util path]>
 require! './backend/main': {backend, aux}
 require! './backend/dummy': driver
 require! <[google-trends]>
 require! <[google-search]>
 
+# specialized base64 encoder ( slash character escaped )
+base64 = do
+  encode: -> new Buffer(it).toString("base64").replace /\//g, "-"
+  decode: -> new Buffer(it.replace(/-/g, "/"), \base64).toString!
+
+store = do
+  path: -> path.join \./data, base64.encode(it)
+  read: -> 
+    if !fs.exists-sync(@path(it)) => return {}
+    JSON.parse(fs.read-file-sync @path(it) .toString!)
+  write: (name, data) -> fs.write-file-sync @path(name), JSON.stringify(data)
+  time: -> if fs.exists-sync @path(it) => fs.stat-sync(@path it).mtime.getTime! else 0
+  age: -> new Date!getTime! - @time it
+  still-young: -> @age(it) < @cache-time
+  cache-time: 3 * 86400 * 1000
+    
 prequest = (config) -> new bluebird (res, rej) ->
   (e,r,b) <- request config, _
   if e or !b => return rej!
@@ -14,24 +30,36 @@ config <<< secret
 backend.init config, driver, ->
 
 backend.app.get \/trends/:keyword, (req, res) ->
+  if store.still-young "trends/#{req.params.keyword}" =>
+    return res.json store.read "trends/#{req.params.keyword}"
   keywords = req.params.keyword.split(\,)
-  google-trends.getAll keywords .then (result) -> res.json result
+  google-trends.getAll keywords .then (result) -> 
+    store.write "trends/#{req.params.keyword}", result
+    res.json result
 
 backend.app.get \/content/:url, (req, res) ->
-  url = new Buffer(req.params.url.replace(/-/g,'/'), \base64).toString!
-  prequest {url, method: \GET} .then (body) ->
+  url = base64.decode(req.params.url)
+  if store.still-young "content/#url" =>
+    return res.json store.read "content/#url"
+  prequest {url, method: \GET, timeout: 5 * 1000} .then (body) ->
     foundi = !!/foundi/.exec(body)
     comment = !!/留言|評論/.exec(body)
     nofollow = !!/nofollow/.exec(body)
-    return res.json {foundi,comment, nofollow}
+    ret = {foundi, comment, nofollow}
+    store.write "content/#url", ret
+    return res.json ret
   .catch -> return res.json null
 
 searchlist = (keywords, res, data = {}) ->
   if keywords.length == 0 => return res.json data
   keyword = keywords.splice(0,1).0
+  if store.still-young "search/#keyword" =>
+    data[keyword] = store.read "search/#keyword"
+    return setTimeout (->searchlist keywords, res, data), 0
   google-search.getPages(keyword, [i for i from 1 to 3]).then (result) ->
     console.log ">>>", keyword, result.length
     data[keyword] = result
+    store.write "search/#keyword", result
     searchlist keywords, res, data
 
 backend.app.get \/search/:keyword, (req, res) ->
@@ -40,19 +68,21 @@ backend.app.get \/search/:keyword, (req, res) ->
 relatedlist = (keywords, res, data = {}) ->
   if keywords.length == 0 => return res.json data
   keyword = keywords.splice(0,1).0
+  if store.still-young "related/#keyword" =>
+    data := data <<< store.read "related/#keyword"
+    return setTimeout (->relatedlist keywords, res, data), 0
   google-trends.recursiveRelated keyword .then (result) ->
+    store.write "related/#keyword", result
     data := data <<< result
     relatedlist keywords, res, data
 
 backend.app.get \/expand/:keyword, (req, res) ->
   relatedlist req.params.keyword.split(\,), res
 
-backend.app.get \/keywords, (req, res) ->
-  if !fs.exists-sync \keywords.json => return res.json {}
-  res.json JSON.parse(fs.read-file-sync \keywords.json .toString!)
+backend.app.get \/keywords, (req, res) -> res.json store.read "keywords"
 
 backend.app.post \/keywords/save, (req, res) ->
-  fs.write-file-sync \keywords.json, JSON.stringify(req.body)
+  store.write "keywords", req.body
   res.json {}
 
 backend.app.get \/global, aux.type.json, (req, res) -> res.render \global.ls, {user: req.user, global: true}
