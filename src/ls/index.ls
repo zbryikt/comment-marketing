@@ -61,6 +61,18 @@ angular.module \main, <[]>
       .success (d) -> 
         item.stat = d
         $timeout (-> $scope.getsites-stat!), 10
+    $scope.sort-site = (type) ->
+      switch type
+      | 1 => $scope.sites.sort((a,b) -> b.idx - a.idx)
+      | 2 => 
+        e = -> it or {}
+        $scope.sites.sort (a,b) -> 
+          score-a = [(if e(a.stat).nofollow==false => 1 else 0), (if !e(a.stat).foundi => 1 else 0), (if e(a.stat).comment => 1 else 0)]
+          score-b = [(if e(b.stat).nofollow==false => 1 else 0), (if !e(b.stat).foundi => 1 else 0), (if e(b.stat).comment => 1 else 0)]
+          [score-a,score-b] = [score-a,score-b]map -> it.map((d,i) -> d * (2 ** i))reduce(((a,b) -> a + b),0)
+          if score-b == score-a => return b.idx - a.idx
+          return score-b - score-a
+
     $scope.getsites = ->
       keyword = [k for k of $scope.keywords].join(\,)
       if !keyword => return
@@ -83,10 +95,11 @@ angular.module \main, <[]>
             host = /(([^.]+)(.(edu|com|net|gov|idv|org))?\.[^/.]+)$/.exec host
             item.host = host.1
             item.idx = (60 - idx) * $scope.trends[k]
+            item.idxstr = if item.idx >= 1000 => "#{parseInt(item.idx/1000)}K" else parseInt(item.idx)
             $scope.hosts[item.host] = ($scope.hosts[item.host] or 0) + item.idx
             $scope.sites.push item
             idx++
-        $scope.sites.sort((a,b) -> b.idx - a.idx)
+        $scope.sort-site 1
         $scope.hostbar!
         $scope.getsites-stat!
     $scope.color = color = d3.scale.category20!
@@ -143,6 +156,19 @@ angular.module \main, <[]>
           y: -> it.y
           opacity: -> if it.r == 0 => 0 else 1
         ..text -> it.name
+    $scope.reload = (site, name) ->
+      $http do
+        url: "/content/#{base64p(site.href)}/force"
+        method: \GET
+      .success (d) -> site.stat <<< d
+    $scope.toggle = (site, name) ->
+      site.stat[name] = !!!site.stat[name]
+      $http do
+        url: "/content/#{base64p(site.href)}"
+        method: \POST
+        data: site.stat
+      .success (d) ->
     $scope.$watch 'trends', -> $scope.bubble!
     $scope.init!
     $scope.trends = {'Comment': 1, 'Marketing': 1, 'Tool': 1}
+    $('[data-toggle="tooltip"]').tooltip!

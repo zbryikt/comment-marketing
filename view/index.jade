@@ -30,9 +30,41 @@ block body
             svg#host(width="100%",height="400px",viewbox="0 0 600 400",preserveAspectRatio="xMidYMid")
               g.bar
               g.text
-        .site(ng-repeat="s in sites",ng-class="{'foundi':s.stat.foundi,'comment':s.stat.comment,'nofollow':s.stat.nofollow,'loading':!s.stat}") 
-          .key(ng-attr-style="background:{{color(s.key)}}") {{s.key}}
+        .site.comment.foundi
+          .key(style="background:#faa")
+            .pull-right: i.glyphicon.glyphicon-play-circle
+            | 圖例
+          .host
+            .bullet(style="background:#999")
+            | hostname
+          .title 
+            i.glyphicon.glyphicon-check(ng-class="{'active':s.stat.foundi}",ng-click="toggle(s,'foundi')")
+            |  - foundi found
+            br
+            i.glyphicon.glyphicon-share(ng-class="{'active':!s.stat.nofollow}",ng-click="toggle(s,'nofollow')")
+            |  - bot will follow
+            br
+            i.glyphicon.glyphicon-edit(ng-class="{'active':s.stat.comment}",ng-click="toggle(s,'comment')")
+            |  - can comment
+          .sort
+            .btn.btn-success.btn-xs(ng-click="sortSite(1)") By Rank
+            |   
+            .btn.btn-primary.btn-xs(ng-click="sortSite(2)") By State
+
+        .site(ng-repeat="s in sites",ng-class="{'foundi':s.stat.foundi,'comment':s.stat.comment,'nofollow':s.stat.nofollow,'loading':!s.stat}")
+          .key(ng-attr-style="background:{{color(s.key)}}")
+            a.pull-right(ng-attr-href="{{s.href}}",target="_blank"): i.glyphicon.glyphicon-play-circle
+            | {{s.key}}
+            small 
+              | / 
+              | {{s.idxstr}}
           .host
             .bullet(ng-attr-style="background:{{barcolor(hosts[s.host])}}")
             | {{s.host}}
-          .title {{s.title}}
+          .title
+            | {{s.title}} 
+          .ctrl
+            i.glyphicon.glyphicon-refresh(ng-click="reload(s)")
+            i.glyphicon.glyphicon-check(ng-class="{'active':s.stat.foundi}",ng-click="toggle(s,'foundi')")
+            i.glyphicon.glyphicon-share(ng-class="{'active':!s.stat.nofollow}",ng-click="toggle(s,'nofollow')")
+            i.glyphicon.glyphicon-edit(ng-class="{'active':s.stat.comment}",ng-click="toggle(s,'comment')")

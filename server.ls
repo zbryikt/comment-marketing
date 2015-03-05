@@ -37,18 +37,27 @@ backend.app.get \/trends/:keyword, (req, res) ->
     store.write "trends/#{req.params.keyword}", result
     res.json result
 
-backend.app.get \/content/:url, (req, res) ->
+backend.app.post \/content/:url, (req, res) ->
   url = base64.decode(req.params.url)
-  if store.still-young "content/#url" =>
+  data = {} <<< req.body{foundi, comment, nofollow}
+  store.write "content/#url", data
+  return res.json {}
+
+get-content = (req, res, force=no) ->
+  url = base64.decode(req.params.url)
+  if !force and store.still-young("content/#url") =>
     return res.json store.read "content/#url"
   prequest {url, method: \GET, timeout: 5 * 1000} .then (body) ->
     foundi = !!/foundi/.exec(body)
-    comment = !!/留言|評論/.exec(body)
+    comment = (!!/留言|評論/.exec(body)) or (!!/fb-comments/.exec body)
     nofollow = !!/nofollow/.exec(body)
     ret = {foundi, comment, nofollow}
     store.write "content/#url", ret
     return res.json ret
   .catch -> return res.json null
+
+backend.app.get \/content/:url, (req, res) -> get-content req, res
+backend.app.get \/content/:url/force, (req, res) -> get-content req, res, true
 
 searchlist = (keywords, res, data = {}) ->
   if keywords.length == 0 => return res.json data

@@ -113,6 +113,35 @@ x$.controller('main', ['$scope', '$http', '$timeout'].concat(function($scope, $h
       }, 10);
     });
   };
+  $scope.sortSite = function(type){
+    var e;
+    switch (type) {
+    case 1:
+      return $scope.sites.sort(function(a, b){
+        return b.idx - a.idx;
+      });
+    case 2:
+      e = function(it){
+        return it || {};
+      };
+      return $scope.sites.sort(function(a, b){
+        var scoreA, scoreB, ref$;
+        scoreA = [e(a.stat).nofollow === false ? 1 : 0, !e(a.stat).foundi ? 1 : 0, e(a.stat).comment ? 1 : 0];
+        scoreB = [e(b.stat).nofollow === false ? 1 : 0, !e(b.stat).foundi ? 1 : 0, e(b.stat).comment ? 1 : 0];
+        ref$ = [scoreA, scoreB].map(function(it){
+          return it.map(function(d, i){
+            return d * Math.pow(2, i);
+          }).reduce(function(a, b){
+            return a + b;
+          }, 0);
+        }), scoreA = ref$[0], scoreB = ref$[1];
+        if (scoreB === scoreA) {
+          return b.idx - a.idx;
+        }
+        return scoreB - scoreA;
+      });
+    }
+  };
   $scope.getsites = function(){
     var keyword, k;
     keyword = (function(){
@@ -147,14 +176,15 @@ x$.controller('main', ['$scope', '$http', '$timeout'].concat(function($scope, $h
           host = /(([^.]+)(.(edu|com|net|gov|idv|org))?\.[^/.]+)$/.exec(host);
           item.host = host[1];
           item.idx = (60 - idx) * $scope.trends[k];
+          item.idxstr = item.idx >= 1000
+            ? parseInt(item.idx / 1000) + "K"
+            : parseInt(item.idx);
           $scope.hosts[item.host] = ($scope.hosts[item.host] || 0) + item.idx;
           $scope.sites.push(item);
           idx++;
         }
       }
-      $scope.sites.sort(function(a, b){
-        return b.idx - a.idx;
-      });
+      $scope.sortSite(1);
       $scope.hostbar();
       return $scope.getsitesStat();
     });
@@ -279,13 +309,35 @@ x$.controller('main', ['$scope', '$http', '$timeout'].concat(function($scope, $h
     });
     return z1$;
   };
+  $scope.reload = function(site, name){
+    return $http({
+      url: "/content/" + base64p(site.href) + "/force",
+      method: 'GET'
+    }).success(function(d){
+      return import$(site.stat, d);
+    });
+  };
+  $scope.toggle = function(site, name){
+    site.stat[name] = !site.stat[name];
+    return $http({
+      url: "/content/" + base64p(site.href),
+      method: 'POST',
+      data: site.stat
+    }).success(function(d){});
+  };
   $scope.$watch('trends', function(){
     return $scope.bubble();
   });
   $scope.init();
-  return $scope.trends = {
+  $scope.trends = {
     'Comment': 1,
     'Marketing': 1,
     'Tool': 1
   };
+  return $('[data-toggle="tooltip"]').tooltip();
 }));
+function import$(obj, src){
+  var own = {}.hasOwnProperty;
+  for (var key in src) if (own.call(src, key)) obj[key] = src[key];
+  return obj;
+}
