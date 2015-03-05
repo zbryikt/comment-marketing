@@ -40,7 +40,7 @@ backend.app.get \/trends/:keyword, (req, res) ->
 backend.app.post \/content/:url, (req, res) ->
   url = base64.decode(req.params.url)
   data = {} <<< req.body{foundi, comment, nofollow}
-  store.write "content/#url", data
+  store.write "content/custom/#url", data
   return res.json {}
 
 get-content = (req, res, force=no) ->
@@ -53,7 +53,8 @@ get-content = (req, res, force=no) ->
     nofollow = !!/nofollow/.exec(body)
     ret = {foundi, comment, nofollow}
     store.write "content/#url", ret
-    return res.json ret
+    custom-ret = store.read "content/custom/#url"
+    return res.json (ret <<< custom-ret)
   .catch -> return res.json null
 
 backend.app.get \/content/:url, (req, res) -> get-content req, res
